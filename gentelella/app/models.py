@@ -4,6 +4,11 @@ import django_tables2 as tables
 from datetime import datetime
 import dateutil.parser
 
+from plotly.offline import plot
+import plotly.plotly as py
+import plotly.graph_objs as go
+import plotly
+
 class Study (models.Model):
     SRP = models.CharField(max_length=100)
     PRJ = models.CharField(max_length=100)
@@ -47,5 +52,42 @@ def load_RC(input_file):
             rc = int(rc)
             Sample.objects.filter(Experiment=exp).update(RC=rc)
 
-# Create your models here.
 
+def fluid_boxplot():
+    kind_of_fluids = set(Sample.objects.order_by('Fluid').values_list('Fluid', flat=True))
+    rc_by_fluid = {fluid : list(Sample.objects.filter(Fluid=fluid).order_by('RC').values_list('RC', flat=True)) for fluid in kind_of_fluids}
+    data = []
+    color_list = ["red", "green", "blue", "yellow", "purple", "orange"] * 10
+    color_fluid = list(zip(color_list, kind_of_fluids))
+    for color, fluid in color_fluid:
+        trace = go.Box(
+            y = rc_by_fluid[fluid],
+            name = fluid,
+            marker = dict(
+                color = color
+            )
+        )
+        data.append(trace)
+    layout = go.Layout(
+        autosize=True,
+        margin=go.Margin(
+            l=50,
+            r=50,
+            b=150,
+            t=100,
+            pad=4
+        ),
+        title="Total Read Counts by Fluid",
+        xaxis=dict(
+            tickfont=dict(
+                size=18
+            )
+        ),
+        yaxis=dict(
+            type='log',
+            title='Total Read Count'
+        )
+    )
+    fig = go.Figure(data=data, layout=layout)
+    div_obj = plot(fig, show_link=False, auto_open=False, output_type = 'div')
+    return div_obj
